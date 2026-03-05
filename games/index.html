@@ -6085,7 +6085,7 @@
     // --- ИНИЦИАЛИЗАЦИЯ И МУЛЬТИПЛЕЕР (ПРИЕМ) ---
     const gameApp = new Game();
     window.gameInstance = gameApp; // Делаем игру видимой для кнопок меню
-    const otherPlayers = {};
+
 
     if (typeof socket !== 'undefined') {
       socket.on("msg", (data) => {
@@ -6115,6 +6115,7 @@
   </script>
 </body>
 </html>
+
 
 
 
