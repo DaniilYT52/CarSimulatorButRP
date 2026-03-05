@@ -1,16 +1,7 @@
 /*
   PRO 3D Car Simulator - Multiplayer Server (Socket.io)
   ------------------------------------------------------
-  Run:
-    npm install
-    npm start
-
-  Features:
-  - max 20 concurrent players
-  - join/leave broadcasts
-  - realtime position sync (x, y, z, rotation, speed)
-  - global room chat
-  - persistent player profile storage (JSON)
+  Fixed for Render.com deployment
 */
 
 const fs = require("fs");
@@ -18,7 +9,8 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 
-const PORT = Number(process.env.PORT || 8080);
+// Render сам назначит PORT, если нет - используем 8080
+const PORT = process.env.PORT || 8080;
 const MAX_PLAYERS = 20;
 const SAVE_FILE = path.join(__dirname, "player-data.json");
 
@@ -139,8 +131,8 @@ const io = new Server(httpServer, {
   cors: { origin: "*" }
 });
 
-const clients = new Map(); // socket.id -> { socketId, playerID, name, room, lastChatAt }
-const states = new Map(); // socket.id -> latest sanitized state
+const clients = new Map(); 
+const states = new Map(); 
 
 function emitRoom(room, payload, exceptSocketId = null) {
   if (exceptSocketId) {
@@ -196,7 +188,6 @@ io.on("connection", (socket) => {
         maxPlayers: MAX_PLAYERS
       });
 
-      // Send currently connected players in this room to the new user.
       for (const [otherId, state] of states) {
         if (otherId === socket.id) continue;
         if (state.room !== room) continue;
@@ -217,7 +208,7 @@ io.on("connection", (socket) => {
 
     if (t === "chat" || t === "message") {
       const now = Date.now();
-      if (now - meta.lastChatAt < 1000) return; // server anti-spam
+      if (now - meta.lastChatAt < 1000) return; 
       meta.lastChatAt = now;
       clients.set(socket.id, meta);
 
@@ -275,16 +266,19 @@ io.on("connection", (socket) => {
   });
 });
 
+// --- СЕКЦИЯ ЗАПУСКА ---
 httpServer.listen(PORT, () => {
-  console.log(`[server] Socket.io running on http://localhost:${PORT}`);
+  console.log(`[server] Running on port ${PORT}`);
   console.log(`[server] Max players: ${MAX_PLAYERS}`);
-  console.log(`[server] Profile store: ${SAVE_FILE}`);
 });
 
+// Сохранение при выключении
 process.on("SIGINT", () => {
   try {
     fs.writeFileSync(SAVE_FILE, JSON.stringify(profiles, null, 2), "utf8");
-  } catch {}
+    console.log("Profiles saved.");
+  } catch (e) {}
   process.exit(0);
+});
 });
 
