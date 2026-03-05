@@ -6079,28 +6079,36 @@
 
         this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(this._animate);
-      };
-    }
-socket.on("msg", (data) => {
-    if (data.t === "state" && data.id !== socket.id) {
-        if (!otherPlayers[data.id]) {
+}; // Закрывает функцию _animate (строго ОДНА скобка здесь)
+
+      window.gameInstance = this; 
+
+      socket.on("msg", (data) => {
+        if (data.t === "state" && data.id !== socket.id) {
+          if (!otherPlayers[data.id]) {
             const geom = new THREE.BoxGeometry(2, 1, 4);
             const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
             const mesh = new THREE.Mesh(geom, mat);
-            // Добавляем куб на сцену через твой объект игры
             if (window.gameInstance && window.gameInstance.scene) {
-                window.gameInstance.scene.add(mesh);
-            } else if (typeof scene !== 'undefined') {
-                scene.add(mesh);
+              window.gameInstance.scene.add(mesh);
             }
             otherPlayers[data.id] = mesh;
+          }
+          const p = otherPlayers[data.id];
+          if (p) {
+            p.position.set(data.x, data.y, data.z);
+            p.rotation.y = data.yaw || 0;
+          }
         }
-        otherPlayers[data.id].position.set(data.x, data.y, data.z);
-        otherPlayers[data.id].rotation.y = data.yaw || 0;
-    }
-}
+        
+        if (data.t === "leave" && otherPlayers[data.id]) {
+          if (window.gameInstance && window.gameInstance.scene) {
+            window.gameInstance.scene.remove(otherPlayers[data.id]);
+          }
+          delete otherPlayers[data.id];
+        }
       });
-    } // Конец класса Game
+    } // Закрывает конструктор класса Game
 
     new Game();
   </script>
