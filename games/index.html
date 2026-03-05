@@ -6041,14 +6041,18 @@
           this.missions.renderDisabled();
         }
 
-        // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ТВОИХ ДАННЫХ ---
+    // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ТВОИХ ДАННЫХ (С ИМЕНЕМ) ---
         if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
+          // Получаем имя из инпута в меню, если пусто — будет "Driver"
+          const playerName = document.getElementById('mp-player-name')?.value || "Driver";
+          
           socket.emit("msg", {
             t: "state",
             x: this.player.mesh.position.x,
             y: this.player.mesh.position.y,
             z: this.player.mesh.position.z,
-            yaw: this.player.yaw
+            yaw: this.player.yaw,
+            name: playerName // Добавили передачу ника
           });
         }
         this.multiplayer.update(dt);
@@ -6111,6 +6115,7 @@
   </script>
 </body>
 </html>
+
 
 
 
