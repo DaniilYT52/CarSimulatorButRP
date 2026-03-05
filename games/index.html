@@ -6046,13 +6046,21 @@
           // Получаем имя из инпута в меню, если пусто — будет "Driver"
           const playerName = document.getElementById('mp-player-name')?.value || "Driver";
           
+// --- МУЛЬТИПЛЕЕР: ОТПРАВКА ДАННЫХ (Позиция, Ник и Машина) ---
+        if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
+          // Берем имя из поля ввода
+          const playerName = document.getElementById('mp-player-name')?.value || "Driver";
+          // Берем ID текущей машины игрока
+          const carId = this.player.carConfig?.id || "sedan";
+
           socket.emit("msg", {
             t: "state",
             x: this.player.mesh.position.x,
             y: this.player.mesh.position.y,
             z: this.player.mesh.position.z,
             yaw: this.player.yaw,
-            name: playerName // Добавили передачу ника
+            name: playerName,
+            carModel: carId // Передаем ID машины
           });
         }
         this.multiplayer.update(dt);
@@ -6087,24 +6095,45 @@
     window.gameInstance = gameApp; // Делаем игру видимой для кнопок меню
 
 
-    if (typeof socket !== 'undefined') {
+if (typeof socket !== 'undefined') {
       socket.on("msg", (data) => {
         if (data.t === "state" && data.id !== socket.id) {
           if (!otherPlayers[data.id]) {
-            // Создаем машину другого игрока (красный куб)
-            const geom = new THREE.BoxGeometry(2, 1, 4);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-            const mesh = new THREE.Mesh(geom, mat);
-            if (gameApp.scene) gameApp.scene.add(mesh);
-            otherPlayers[data.id] = mesh;
+            // Создаем группу для игрока (модель машины + никнейм)
+            const group = new THREE.Group();
+
+            // 1. Пытаемся создать визуальную модель машины из гаража
+            let carVisual;
+            const carId = data.carModel || "sedan";
+            
+            if (gameApp.garage && typeof gameApp.garage.createVisual === 'function') {
+              carVisual = gameApp.garage.createVisual(carId);
+            } else {
+              // Если гараж не готов, создаем временную коробку
+              carVisual = new THREE.Mesh(
+                new THREE.BoxGeometry(2, 1, 4),
+                new THREE.MeshStandardMaterial({ color: 0x00ff00 }) // Зеленый для отличия
+              );
+            }
+            group.add(carVisual);
+
+            // 2. Логируем в консоль для проверки никнейма
+            if (data.name) {
+              console.log(`[Multiplayer] Player ${data.id} is now known as ${data.name}`);
+            }
+
+            if (gameApp.scene) gameApp.scene.add(group);
+            otherPlayers[data.id] = group;
           }
-          // Обновляем позицию чужой машины
+
+          // Обновляем позицию и поворот всей группы (машины)
           const p = otherPlayers[data.id];
           if (p) {
             p.position.set(data.x, data.y, data.z);
             p.rotation.y = data.yaw || 0;
           }
         }
+
         // Удаление игрока при выходе
         if (data.t === "leave" && otherPlayers[data.id]) {
           if (gameApp.scene) gameApp.scene.remove(otherPlayers[data.id]);
