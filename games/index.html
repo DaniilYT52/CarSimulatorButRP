@@ -6008,34 +6008,45 @@ _animate = () => {
           });
         }
 
-        this.renderer.render(this.scene, this.camera);
+this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(this._animate);
       };
+    } // Конец класса Game
 
-      // --- МУЛЬТИПЛЕЕР: ПРИЕМ ---
-      socket.on("msg", (data) => {
+    // Запускаем игру и сохраняем её в глобальную переменную
+    window.gameInstance = new Game();
+
+    // Слушаем сообщения от сервера (Мультиплеер)
+    socket.on("msg", (data) => {
         if (data.t === "state" && data.id !== socket.id) {
-          if (!otherPlayers[data.id]) {
-            const geom = new THREE.BoxGeometry(2, 1, 4);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-            const mesh = new THREE.Mesh(geom, mat);
-            if (window.gameInstance && window.gameInstance.scene) {
-              window.gameInstance.scene.add(mesh);
+            // Если игрока еще нет на карте — создаем его (красный куб)
+            if (!otherPlayers[data.id]) {
+                const geom = new THREE.BoxGeometry(2, 1, 4);
+                const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+                const mesh = new THREE.Mesh(geom, mat);
+                
+                if (window.gameInstance && window.gameInstance.scene) {
+                    window.gameInstance.scene.add(mesh);
+                }
+                otherPlayers[data.id] = mesh;
             }
-            otherPlayers[data.id] = mesh;
-          }
-          const p = otherPlayers[data.id];
-          if (p) {
-            p.position.set(data.x, data.y, data.z);
-            p.rotation.y = data.yaw || 0;
-          }
+            
+            // Двигаем машину другого игрока
+            const p = otherPlayers[data.id];
+            if (p) {
+                p.position.set(data.x, data.y, data.z);
+                p.rotation.y = data.yaw || 0;
+            }
         }
-      });
-    } // Конец конструктора Game (ЭТА СКОБКА ЗАКРЫВАЕТ ВСЁ)
 
-    // Запуск
-    const game = new Game();
+        // Если игрок вышел — удаляем куб
+        if (data.t === "leave" && otherPlayers[data.id]) {
+            if (window.gameInstance && window.gameInstance.scene) {
+                window.gameInstance.scene.remove(otherPlayers[data.id]);
+            }
+            delete otherPlayers[data.id];
+        }
+    });
   </script>
 </body>
 </html>
-
