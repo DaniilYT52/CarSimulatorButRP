@@ -6012,9 +6012,6 @@ _animate = () => {
         requestAnimationFrame(this._animate);
       };
 
-      // ВОТ ТУТ МЫ ПРИВЯЗЫВАЕМ ИГРУ К ОКНУ
-      window.gameInstance = this;
-
       // --- МУЛЬТИПЛЕЕР: ПРИЕМ ---
       socket.on("msg", (data) => {
         if (data.t === "state" && data.id !== socket.id) {
@@ -6041,3 +6038,4 @@ _animate = () => {
   </script>
 </body>
 </html>
+
