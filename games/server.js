@@ -9,7 +9,6 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 
-// Render сам назначит PORT, если нет - используем 8080
 const PORT = process.env.PORT || 8080;
 const MAX_PLAYERS = 20;
 const SAVE_FILE = path.join(__dirname, "player-data.json");
@@ -266,13 +265,10 @@ io.on("connection", (socket) => {
   });
 });
 
-// --- СЕКЦИЯ ЗАПУСКА ---
 httpServer.listen(PORT, () => {
   console.log(`[server] Running on port ${PORT}`);
-  console.log(`[server] Max players: ${MAX_PLAYERS}`);
 });
 
-// Сохранение при выключении
 process.on("SIGINT", () => {
   try {
     fs.writeFileSync(SAVE_FILE, JSON.stringify(profiles, null, 2), "utf8");
@@ -280,4 +276,3 @@ process.on("SIGINT", () => {
   } catch (e) {}
   process.exit(0);
 });
-
