@@ -822,9 +822,33 @@
     Press E to enter your garage
   </div>
 
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script type="module">
     import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+    // --- НАСТРОЙКА ПОДКЛЮЧЕНИЯ ---
+    // Пытаемся найти поле ввода адреса сервера, если его нет — используем Render по умолчанию
+    const serverInput = document.getElementById('mp-server-url');
+    const SERVER_URL = (serverInput && serverInput.value) ? serverInput.value : "https://carsimulatorbutrp.onrender.com";
+
+    // Инициализируем сокет
+    const socket = io(SERVER_URL, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5
+    });
+
+    // Логи для проверки в консоли (F12)
+    socket.on("connect", () => {
+      console.log("%c[Socket] Connected! ID: " + socket.id, "color: green; font-weight: bold;");
+    });
+
+    socket.on("connect_error", (err) => {
+      console.warn("[Socket] Connection failed. Check if server is online.");
+    });
+
+    // Список для хранения других игроков (нужен для кода, который мы вставили в конец)
+    const otherPlayers = {};
 
     const clamp = THREE.MathUtils.clamp;
     const lerp = THREE.MathUtils.lerp;
@@ -6087,5 +6111,6 @@
   </script>
 </body>
 </html>
+
 
 
