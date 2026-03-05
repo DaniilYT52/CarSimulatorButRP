@@ -5980,32 +5980,42 @@
         this.fpsMeter.update(dt);
       }
 
-        _animate = () => {
+_animate = () => {
         const dt = Math.min(0.033, this.clock.getDelta());
-        this.garage.update(dt);
-        this.mainMenu.update(dt);
+        
+        // Базовое обновление
+        if (this.garage.isOpen) {
+          this.garage.update(dt);
+        } else if (this.mainMenu.isOpen) {
+          this.mainMenu.update(dt);
+        } else {
+          this._updateDayNight(dt);
+          this.traffic.update(dt);
+          this.player.update(dt, this.input, this.world);
+          this._updateCamera(dt);
+        }
 
-        // Отправка данных, если игрок в игре
+        this._updateUI(dt, this.player.lastFrame);
+
+        // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ---
         if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
           socket.emit("msg", {
             t: "state",
             x: this.player.mesh.position.x,
             y: this.player.mesh.position.y,
             z: this.player.mesh.position.z,
-            yaw: this.player.mesh.rotation.y
+            yaw: this.player.yaw
           });
         }
-
-        this._updateDayNight(dt);
-        this._updateCamera(dt);
-        this._updateUI(dt, this.player.lastFrame);
 
         this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(this._animate);
       };
 
+      // ВОТ ТУТ МЫ ПРИВЯЗЫВАЕМ ИГРУ К ОКНУ
       window.gameInstance = this;
 
+      // --- МУЛЬТИПЛЕЕР: ПРИЕМ ---
       socket.on("msg", (data) => {
         if (data.t === "state" && data.id !== socket.id) {
           if (!otherPlayers[data.id]) {
@@ -6024,9 +6034,10 @@
           }
         }
       });
-    } // Конец класса Game
+    } // Конец конструктора Game (ЭТА СКОБКА ЗАКРЫВАЕТ ВСЁ)
 
-    new Game();
+    // Запуск
+    const game = new Game();
   </script>
 </body>
 </html>
