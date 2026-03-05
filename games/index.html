@@ -423,11 +423,11 @@
       text-shadow: 0 0 10px rgba(102, 178, 255, 0.3);
     }
 
-  #garage-overlay {
-    align-items: flex-start;
-    overflow: auto;
-    padding: max(clamp(10px, 2vh, 22px), env(safe-area-inset-top));
-  }
+    #garage-overlay {
+      align-items: flex-start;
+      overflow: auto;
+      padding: max(clamp(10px, 2vh, 22px), env(safe-area-inset-top));
+    }
 
     .garage-card {
       margin: auto;
@@ -435,12 +435,12 @@
       max-height: calc(100dvh - 14px);
     }
 
-  .garage-top {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    padding-top: max(14px, env(safe-area-inset-top));
-  }
+    .garage-top {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
 
     .garage-tabs {
       position: relative;
@@ -839,9 +839,6 @@
       drift: false,
       nitro: false
     });
-    // --- МУЛЬТИПЛЕЕР: ПОДКЛЮЧЕНИЕ ---
-  const socket = io("https://carsimulatorbutrp.onrender.com");
-    const otherPlayers = {}; // Здесь будут храниться чужие машины
 
     function formatMoney(v) {
       return `$${Math.round(v).toLocaleString("en-US")}`;
@@ -5980,75 +5977,85 @@
         this.fpsMeter.update(dt);
       }
 
-_animate = () => {
+      _animate = () => {
         const dt = Math.min(0.033, this.clock.getDelta());
-        
-        // Базовое обновление
+        this.garage.update(dt);
+        this.mainMenu.update(dt);
+
+        if (this.mainMenu.isOpen) {
+          this.rpGarage.update(dt, false);
+          const frame = this.player.lastFrame;
+          frame.speedKmh = this.player.getSpeedKmh();
+          this._updateUI(dt, frame);
+          this.renderer.render(this.scene, this.camera);
+          requestAnimationFrame(this._animate);
+          return;
+        }
+
         if (this.garage.isOpen) {
-          this.garage.update(dt);
-        } else if (this.mainMenu.isOpen) {
-          this.mainMenu.update(dt);
+          this.rpGarage.update(dt, false);
+          const frame = this.player.lastFrame;
+          frame.speedKmh = this.player.getSpeedKmh();
+          this._updateUI(dt, frame);
+          this.renderer.render(this.scene, this.camera);
+          requestAnimationFrame(this._animate);
+          return;
+        }
+
+        this._updateDayNight(dt);
+        this.trafficLights.update(dt);
+        this.traffic.update(dt);
+        this.rpGarage.update(dt, !!this.modeConfig?.multiplayer && !this.damage.destroyed);
+
+        const controlInput = this.multiplayer.isControlLocked() ? NO_INPUT : this.input;
+        let frame;
+        if (!this.damage.destroyed) {
+          frame = this.player.update(dt, controlInput, this.world, this.traffic);
         } else {
-          this._updateDayNight(dt);
-          this.traffic.update(dt);
-          this.player.update(dt, this.input, this.world);
-          this._updateCamera(dt);
+          frame = this.player.lastFrame;
+          frame.speedKmh = this.player.getSpeedKmh();
+          frame.worldImpact = 0;
+          frame.trafficHits = 0;
+          frame.trafficImpact = 0;
+          frame.totalImpact = 0;
+          frame.driftGain = 0;
         }
 
-        this._updateUI(dt, this.player.lastFrame);
-
-        // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ---
-        if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
-          socket.emit("msg", {
-            t: "state",
-            x: this.player.mesh.position.x,
-            y: this.player.mesh.position.y,
-            z: this.player.mesh.position.z,
-            yaw: this.player.yaw
-          });
+        const collectedMoney = this.economy.update(dt, this.player.position, !this.damage.destroyed);
+        if (collectedMoney > 0) this.sound.playCollect();
+        if (!this.modeConfig?.disableMissions) {
+          this.missions.update(dt, this.player, frame, this.damage.destroyed);
+        } else {
+          this.missions.renderDisabled();
         }
+        this.multiplayer.update(dt);
 
-this.renderer.render(this.scene, this.camera);
+        let policeImpact = 0;
+        if (!this.modeConfig?.disablePolice) {
+          policeImpact = this.police.update(dt, this.player, frame, this.damage.destroyed);
+        } else if (this.police.wantedLevel > 0 || this.police.units.length > 0) {
+          this.police.resetWanted();
+        }
+        this.damage.update(dt, frame, policeImpact);
+        if (this.damage.justRespawned) {
+          this.police.resetWanted();
+          this.missions.failIfActive("Mission failed: vehicle respawned.");
+        }
+        if (!this.prevDestroyedState && this.damage.destroyed) {
+          this.sound.playExplosion();
+        }
+        this.prevDestroyedState = this.damage.destroyed;
+
+        this.effects.update(dt);
+        this._updateCamera(dt);
+        this._updateUI(dt, frame);
+
+        this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(this._animate);
       };
-    } // Конец класса Game
+    }
 
-    // Запускаем игру и сохраняем её в глобальную переменную
-    window.gameInstance = new Game();
-
-    // Слушаем сообщения от сервера (Мультиплеер)
-    socket.on("msg", (data) => {
-        if (data.t === "state" && data.id !== socket.id) {
-            // Если игрока еще нет на карте — создаем его (красный куб)
-            if (!otherPlayers[data.id]) {
-                const geom = new THREE.BoxGeometry(2, 1, 4);
-                const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-                const mesh = new THREE.Mesh(geom, mat);
-                
-                if (window.gameInstance && window.gameInstance.scene) {
-                    window.gameInstance.scene.add(mesh);
-                }
-                otherPlayers[data.id] = mesh;
-            }
-            
-            // Двигаем машину другого игрока
-            const p = otherPlayers[data.id];
-            if (p) {
-                p.position.set(data.x, data.y, data.z);
-                p.rotation.y = data.yaw || 0;
-            }
-        }
-
-        // Если игрок вышел — удаляем куб
-        if (data.t === "leave" && otherPlayers[data.id]) {
-            if (window.gameInstance && window.gameInstance.scene) {
-                window.gameInstance.scene.remove(otherPlayers[data.id]);
-            }
-            delete otherPlayers[data.id];
-        }
-    });
+    new Game();
   </script>
 </body>
 </html>
-
-
