@@ -839,6 +839,9 @@
       drift: false,
       nitro: false
     });
+    // --- МУЛЬТИПЛЕЕР: ПОДКЛЮЧЕНИЕ ---
+  const socket = io("https://carsimulatorbutrp.onrender.com");
+    const otherPlayers = {}; // Здесь будут храниться чужие машины
 
     function formatMoney(v) {
       return `$${Math.round(v).toLocaleString("en-US")}`;
@@ -5987,6 +5990,18 @@
           const frame = this.player.lastFrame;
           frame.speedKmh = this.player.getSpeedKmh();
           this._updateUI(dt, frame);
+          
+          // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ДАННЫХ ИЗ МЕНЮ ---
+          if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
+            socket.emit("msg", {
+              t: "state",
+              x: this.player.mesh.position.x,
+              y: this.player.mesh.position.y,
+              z: this.player.mesh.position.z,
+              yaw: this.player.mesh.rotation.y
+            });
+          }
+
           this.renderer.render(this.scene, this.camera);
           requestAnimationFrame(this._animate);
           return;
@@ -5997,6 +6012,18 @@
           const frame = this.player.lastFrame;
           frame.speedKmh = this.player.getSpeedKmh();
           this._updateUI(dt, frame);
+
+          // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ДАННЫХ ИЗ ГАРАЖА ---
+          if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
+            socket.emit("msg", {
+              t: "state",
+              x: this.player.mesh.position.x,
+              y: this.player.mesh.position.y,
+              z: this.player.mesh.position.z,
+              yaw: this.player.mesh.rotation.y
+            });
+          }
+
           this.renderer.render(this.scene, this.camera);
           requestAnimationFrame(this._animate);
           return;
@@ -6054,6 +6081,26 @@
         requestAnimationFrame(this._animate);
       };
     }
+socket.on("msg", (data) => {
+    if (data.t === "state" && data.id !== socket.id) {
+        if (!otherPlayers[data.id]) {
+            const geom = new THREE.BoxGeometry(2, 1, 4);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const mesh = new THREE.Mesh(geom, mat);
+            // Добавляем куб на сцену через твой объект игры
+            if (window.gameInstance && window.gameInstance.scene) {
+                window.gameInstance.scene.add(mesh);
+            } else if (typeof scene !== 'undefined') {
+                scene.add(mesh);
+            }
+            otherPlayers[data.id] = mesh;
+        }
+        otherPlayers[data.id].position.set(data.x, data.y, data.z);
+        otherPlayers[data.id].rotation.y = data.yaw || 0;
+    }
+}
+      });
+    } // Конец класса Game
 
     new Game();
   </script>
