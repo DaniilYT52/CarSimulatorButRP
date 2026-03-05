@@ -280,5 +280,4 @@ process.on("SIGINT", () => {
   } catch (e) {}
   process.exit(0);
 });
-});
 
