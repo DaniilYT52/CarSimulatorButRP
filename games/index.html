@@ -6081,52 +6081,62 @@ _animate = () => {
       };
     } // Конец класса Game
 
-    // --- ФУНКЦИЯ ДЛЯ НИКНЕЙМОВ ---
+    // --- ФУНКЦИЯ ДЛЯ СОЗДАНИЯ ТЕКСТА НАД МАШИНОЙ ---
     function createNameLabel(name) {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = 256; canvas.height = 64;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.font = 'bold 40px Arial';
+      ctx.font = 'bold 36px Arial';
       ctx.fillStyle = 'white';
       ctx.textAlign = 'center';
       ctx.fillText(name, 128, 45);
       const texture = new THREE.CanvasTexture(canvas);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
       sprite.scale.set(4, 1, 1);
-      sprite.position.y = 2.5;
+      sprite.position.y = 2.5; // Высота над машиной
       return sprite;
     }
-// --- ИНИЦИАЛИЗАЦИЯ ---
-    const gameApp = new Game();
-    window.gameInstance = gameApp;
 
+    // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+    if (!window.otherPlayers) window.otherPlayers = {};
+    const otherPlayers = window.otherPlayers;
+
+    // --- ЗАПУСК ИГРЫ ---
+    window.gameInstance = new Game();
+    const gameApp = window.gameInstance;
+
+    // --- МУЛЬТИПЛЕЕР: ПРИЕМ ДАННЫХ ОТ ДРУГИХ ---
     if (typeof socket !== 'undefined') {
       socket.on("msg", (data) => {
         if (data.t === "state" && data.id !== socket.id) {
           if (!otherPlayers[data.id]) {
             const group = new THREE.Group();
             
-            // Создаем визуальную модель машины
+            // Загружаем модель машины
             let carVisual;
             const carId = data.carModel || "sedan";
             if (gameApp.garage && typeof gameApp.garage.createVisual === 'function') {
               carVisual = gameApp.garage.createVisual(carId);
             } else {
-              carVisual = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+              // Если гараж не подгрузился, создаем временную коробку
+              carVisual = new THREE.Mesh(
+                new THREE.BoxGeometry(2, 1, 4), 
+                new THREE.MeshStandardMaterial({ color: 0x00ff00 })
+              );
             }
             group.add(carVisual);
             
-            // Добавляем никнейм (если функция createNameLabel была добавлена выше)
-            if (typeof createNameLabel === 'function') {
-              group.add(createNameLabel(data.name || "Player"));
-            }
+            // Добавляем никнейм
+            const label = createNameLabel(data.name || "Player");
+            group.add(label);
 
             if (gameApp.scene) gameApp.scene.add(group);
             otherPlayers[data.id] = group;
           }
 
+          // Обновляем позицию группы игрока
           const p = otherPlayers[data.id];
           if (p) {
             p.position.set(data.x, data.y, data.z);
@@ -6134,6 +6144,7 @@ _animate = () => {
           }
         }
 
+        // Удаляем игрока, если он вышел
         if (data.t === "leave" && otherPlayers[data.id]) {
           if (gameApp.scene) gameApp.scene.remove(otherPlayers[data.id]);
           delete otherPlayers[data.id];
