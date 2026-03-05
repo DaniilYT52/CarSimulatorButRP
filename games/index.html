@@ -6001,7 +6001,7 @@
         this.fpsMeter.update(dt);
       }
 
-      _animate = () => {
+_animate = () => {
         const dt = Math.min(0.033, this.clock.getDelta());
         this.garage.update(dt);
         this.mainMenu.update(dt);
@@ -6041,28 +6041,19 @@
           this.missions.renderDisabled();
         }
 
-    // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ТВОИХ ДАННЫХ (С ИМЕНЕМ) ---
+        // --- МУЛЬТИПЛЕЕР: ОТПРАВКА ДАННЫХ ---
         if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
-          // Получаем имя из инпута в меню, если пусто — будет "Driver"
-          const playerName = document.getElementById('mp-player-name')?.value || "Driver";
-          
-// --- МУЛЬТИПЛЕЕР: ОТПРАВКА ДАННЫХ (Позиция, Ник и Машина) ---
-        if (typeof socket !== 'undefined' && socket.connected && this.player && this.player.mesh) {
-          // Берем имя из поля ввода
-          const playerName = document.getElementById('mp-player-name')?.value || "Driver";
-          // Берем ID текущей машины игрока
-          const carId = this.player.carConfig?.id || "sedan";
-
           socket.emit("msg", {
             t: "state",
             x: this.player.mesh.position.x,
             y: this.player.mesh.position.y,
             z: this.player.mesh.position.z,
             yaw: this.player.yaw,
-            name: playerName,
-            carModel: carId // Передаем ID машины
+            name: document.getElementById('mp-player-name')?.value || "Driver",
+            carModel: this.player.carConfig?.id || "sedan"
           });
         }
+
         this.multiplayer.update(dt);
 
         let policeImpact = 0;
@@ -6090,62 +6081,28 @@
       };
     } // Конец класса Game
 
-    // --- ИНИЦИАЛИЗАЦИЯ И МУЛЬТИПЛЕЕР (ПРИЕМ) ---
-    const gameApp = new Game();
-    window.gameInstance = gameApp; // Делаем игру видимой для кнопок меню
-
-
-if (typeof socket !== 'undefined') {
-      socket.on("msg", (data) => {
-        if (data.t === "state" && data.id !== socket.id) {
-          if (!otherPlayers[data.id]) {
-            // Создаем группу для игрока (модель машины + никнейм)
-            const group = new THREE.Group();
-
-            // 1. Пытаемся создать визуальную модель машины из гаража
-            let carVisual;
-            const carId = data.carModel || "sedan";
-            
-            if (gameApp.garage && typeof gameApp.garage.createVisual === 'function') {
-              carVisual = gameApp.garage.createVisual(carId);
-            } else {
-              // Если гараж не готов, создаем временную коробку
-              carVisual = new THREE.Mesh(
-                new THREE.BoxGeometry(2, 1, 4),
-                new THREE.MeshStandardMaterial({ color: 0x00ff00 }) // Зеленый для отличия
-              );
-            }
-            group.add(carVisual);
-
-            // 2. Логируем в консоль для проверки никнейма
-            if (data.name) {
-              console.log(`[Multiplayer] Player ${data.id} is now known as ${data.name}`);
-            }
-
-            if (gameApp.scene) gameApp.scene.add(group);
-            otherPlayers[data.id] = group;
-          }
-
-          // Обновляем позицию и поворот всей группы (машины)
-          const p = otherPlayers[data.id];
-          if (p) {
-            p.position.set(data.x, data.y, data.z);
-            p.rotation.y = data.yaw || 0;
-          }
-        }
-
-        // Удаление игрока при выходе
-        if (data.t === "leave" && otherPlayers[data.id]) {
-          if (gameApp.scene) gameApp.scene.remove(otherPlayers[data.id]);
-          delete otherPlayers[data.id];
-        }
-      });
+    // --- ФУНКЦИЯ ДЛЯ НИКНЕЙМОВ ---
+    function createNameLabel(name) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 256; canvas.height = 64;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = 'bold 40px Arial';
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.fillText(name, 128, 45);
+      const texture = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+      sprite.scale.set(4, 1, 1);
+      sprite.position.y = 2.5;
+      return sprite;
     }
-  </script>
-</body>
-</html>
 
+    // --- ИНИЦИАЛИЗАЦИЯ ---
+    const gameApp = new Game();
+    window.gameInstance = gameApp;
 
-
-
-
+    if (typeof socket !== 'undefined') {
+      socket.on("msg", (data) => {
+        if (data.t === "state" && data.id !== socket.
